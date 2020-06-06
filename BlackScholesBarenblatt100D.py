@@ -102,8 +102,9 @@ if __name__ == "__main__":
 
     "Available architectures"
     mode = "FC"  # FC, Resnet and NAIS-Net are available
-    activation = "sine"  # sine and ReLU are available
+    activation = "Sine"  # Sine and ReLU are available
     model = BlackScholesBarenblatt(Xi, T,
                                    M, N, D,
                                    layers, mode, activation)
-    run_model(model, 2*10**4, 1e-3)
+    # run_model(model, 2*10**4, 1e-3)
+    run_model(model, 2 * 10 ** 3, 1e-3)
