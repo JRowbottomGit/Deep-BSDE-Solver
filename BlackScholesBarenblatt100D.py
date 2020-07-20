@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import time
+import os
 
 from FBSNNs import FBSNN
 
@@ -24,12 +25,10 @@ class BlackScholesBarenblatt(FBSNN):
 
     ###########################################################################
 
-
 def u_exact(t, X):  # (N+1) x 1, (N+1) x D
     r = 0.05
     sigma_max = 0.4
     return np.exp((r + sigma_max ** 2) * (T - t)) * np.sum(X ** 2, 1, keepdims=True)  # (N+1) x 1
-
 
 def run_model(model, N_Iter, learning_rate):
     tot = time.time()
@@ -58,22 +57,26 @@ def run_model(model, N_Iter, learning_rate):
     plt.ylabel('Value')
     plt.yscale("log")
     plt.title('Evolution of the training loss')
+    plt.savefig("TrainLoss")
 
     plt.figure()
     plt.plot(t_test[0:1, :, 0].T, Y_pred[0:1, :, 0].T, 'b', label='Learned $u(t,X_t)$')
     plt.plot(t_test[0:1, :, 0].T, Y_test[0:1, :, 0].T, 'r--', label='Exact $u(t,X_t)$')
     plt.plot(t_test[0:1, -1, 0], Y_test[0:1, -1, 0], 'ko', label='$Y_T = u(T,X_T)$')
-
-    plt.plot(t_test[1:samples, :, 0].T, Y_pred[1:samples, :, 0].T, 'b')
-    plt.plot(t_test[1:samples, :, 0].T, Y_test[1:samples, :, 0].T, 'r--')
-    plt.plot(t_test[1:samples, -1, 0], Y_test[1:samples, -1, 0], 'ko')
-
-    plt.plot([0], Y_test[0, 0, 0], 'ks', label='$Y_0 = u(0,X_0)$')
-
-    plt.xlabel('$t$')
-    plt.ylabel('$Y_t = u(t,X_t)$')
-    plt.title(str(D) + '-dimensional Black-Scholes-Barenblatt, ' + model.mode + "-" + model.activation)
     plt.legend()
+    plt.savefig("Y_pred_and_test")
+    plt.show()
+
+    # plt.plot(t_test[1:samples, :, 0].T, Y_pred[1:samples, :, 0].T, 'b')
+    # plt.plot(t_test[1:samples, :, 0].T, Y_test[1:samples, :, 0].T, 'r--')
+    # plt.plot(t_test[1:samples, -1, 0], Y_test[1:samples, -1, 0], 'ko')
+    #
+    # plt.plot([0], Y_test[0, 0, 0], 'ks', label='$Y_0 = u(0,X_0)$')
+    #
+    # plt.xlabel('$t$')
+    # plt.ylabel('$Y_t = u(t,X_t)$')
+    # plt.title(str(D) + '-dimensional Black-Scholes-Barenblatt, ' + model.mode + "-" + model.activation)
+    # plt.legend()
 
     errors = np.sqrt((Y_test - Y_pred) ** 2 / Y_test ** 2)
     mean_errors = np.mean(errors, 0)
@@ -84,10 +87,16 @@ def run_model(model, N_Iter, learning_rate):
     plt.plot(t_test[0, :, 0], mean_errors + 2 * std_errors, 'r--', label='mean + two standard deviations')
     plt.xlabel('$t$')
     plt.ylabel('relative error')
-    plt.title(str(D) + '-dimensional Black-Scholes-Barenblatt, ' + model.mode + "-" + model.activation)
+    plt.title(str(D) + '-dimensional-Black-Scholes-Barenblatt-' + model.mode + "-" + model.activation)
     plt.legend()
-    plt.savefig(str(D) + '-dimensional Black-Scholes-Barenblatt, ' + model.mode + "-" + model.activation)
+    plt.savefig(str(D) + '-dimensional-Black-Scholes-Barenblatt-' + model.mode + "-" + model.activation)
+    plt.show()
+    cwd = os.getcwd()
+    print(cwd)
 
+    text_file = open("Output.txt", "w")
+    text_file.write(f"where is this file\nhere: {cwd}")
+    text_file.close()
 
 if __name__ == "__main__":
     tot = time.time()
@@ -102,9 +111,10 @@ if __name__ == "__main__":
 
     "Available architectures"
     mode = "FC"  # FC, Resnet and NAIS-Net are available
-    activation = "Sine"  # Sine and ReLU are available
+    activation = "ReLU"  # Sine and ReLU are available
     model = BlackScholesBarenblatt(Xi, T,
                                    M, N, D,
                                    layers, mode, activation)
-    # run_model(model, 2*10**4, 1e-3)
-    run_model(model, 2 * 10 ** 3, 1e-3)
+    # run_model(model, 2*10**3, 1e-3)
+    run_model(model, 2 * 10 ** 2, 1e-3)
+    # run_model(model, 2 * 10, 1e-3)

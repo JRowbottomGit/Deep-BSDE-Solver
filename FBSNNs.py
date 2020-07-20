@@ -5,7 +5,6 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 from Models import Resnet, Sine
 
 
@@ -37,7 +36,7 @@ class FBSNN(ABC):
         elif activation == "ReLU":
             self.activation_function = nn.ReLU()
 
-        # initialize NN
+        # initialize NN layers = [101, 256, 256, 256, 256, 1]
         if self.mode == "FC":
             self.layers = []
             for i in range(len(layers) - 2):
@@ -73,7 +72,12 @@ class FBSNN(ABC):
         u = self.model(input)  # M x 1
         Du = torch.autograd.grad(outputs=[u], inputs=[X], grad_outputs=torch.ones_like(u), allow_unused=True,
                                  retain_graph=True, create_graph=True)[0]
+
+        # print(f"input {input.shape}")
+        # print(f"u {u.shape}")
+        # print(f"Du {Du.shape}")
         return u, Du
+
 
     def Dg_tf(self, X):  # M x D
 
@@ -118,7 +122,7 @@ class FBSNN(ABC):
             Y_list.append(Y0)
 
         loss += torch.sum(torch.pow(Y1 - self.g_tf(X1), 2))
-        loss += torch.sum(torch.pow(Z1 - self.Dg_tf(X1), 2))
+#        loss += torch.sum(torch.pow(Z1 - self.Dg_tf(X1), 2))
 
         X = torch.stack(X_list, dim=1)
         Y = torch.stack(Y_list, dim=1)
@@ -147,6 +151,7 @@ class FBSNN(ABC):
 
         return t, W
 
+
     def train(self, N_Iter, learning_rate):
         loss_temp = np.array([])
 
@@ -170,14 +175,14 @@ class FBSNN(ABC):
             loss_temp = np.append(loss_temp, loss.cpu().detach().numpy())
 
             # Print
-            if it % 100 == 0:
+            if it % 10 == 0:
                 elapsed = time.time() - start_time
                 print('It: %d, Loss: %.3e, Y0: %.3f, Time: %.2f, Learning Rate: %.3e' %
                       (it, loss, Y0_pred, elapsed, learning_rate))
                 start_time = time.time()
 
             # Loss
-            if it % 100 == 0:
+            if it % 10 == 0:
                 self.training_loss.append(loss_temp.mean())
                 loss_temp = np.array([])
 

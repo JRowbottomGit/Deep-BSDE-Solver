@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/Deep-BSDE-Solver.iml" filepath="$PROJECT_DIR$/.idea/Deep-BSDE-Solver.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../FBSNNs/.idea/FBSNNs.iml" filepath="$PROJECT_DIR$/../FBSNNs/.idea/FBSNNs.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../jax/.idea/jax.iml" filepath="$PROJECT_DIR$/../jax/.idea/jax.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../torchdiffeq/.idea/torchdiffeq.iml" filepath="$PROJECT_DIR$/../torchdiffeq/.idea/torchdiffeq.iml" />
+    </modules>
+  </component>
+</project>

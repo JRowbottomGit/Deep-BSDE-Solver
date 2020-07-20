@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="jr1419@GPU08.doc.ic.ac.uk:22">
+    <serverData>
+      <paths name="jr1419@GPU08.doc.ic.ac.uk:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/vol/bitbucket/jr1419/projects/Deep-BSDE-Solver" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>
