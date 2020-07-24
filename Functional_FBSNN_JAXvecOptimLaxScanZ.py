@@ -38,12 +38,6 @@ def grad_forward(params, t, X):
 
 vgrad_forward = vmap(grad_forward, in_axes=(None, 0, 0))
 
-# def Dg_tf(X):  # M x D
-#     g = g_tf(X)
-#     Dg = torch.autograd.grad(outputs=[g], inputs=[X], grad_outputs=torch.ones_like(g), allow_unused=True,
-#                              retain_graph=True, create_graph=True)[0]  # M x D
-#     return Dg
-
 def fetch_minibatch(T,M,N,D):  # Generate time + a Brownian motion
 
     Dt = jnp.zeros((M, N, 1))  # M x (N+1) x 1
@@ -59,40 +53,44 @@ def fetch_minibatch(T,M,N,D):  # Generate time + a Brownian motion
     return new_Dt, new_DW
 
 @jit  #when this is not jitted breaks on 46th epoch for some reason, guess just have to use lax with jax
-def XYpaths(params, t, W, X0):
+def XYZpaths(params, t, W, X0):
     t0 = jnp.array([0.])  # put this in main
 
     Y0 = jnp.asarray([forward(params, t0, X0)]) #need to array it up as make scalar for grad??? really? Y0 = forward(params, t0, X0)  # try without at some point
+    Z0 = grad_forward(params, t0, X0)
     Y0_tilde = jnp.asarray([0.]) #never used
-    initial = (t0,X0,Y0,Y0_tilde)
+    initial = (t0,X0,Y0,Y0_tilde,Z0)
     def body(carry,tW):
         dt, dW = tW
-        t0,X0,Y0,Y0_tilde = carry
-        Z0 = grad_forward(params, t0, X0)
+        t0,X0,Y0,Y0_tilde,Z0 = carry
         X1 = X0 + mu_tf(t0, X0, Y0, Z0) * (dt) + jnp.dot(sigma_tf(t0, X0, Y0), dW)
         Y1_tilde = Y0 + phi_tf(t0, X0, Y0, Z0) * (dt) + jnp.dot(jnp.dot(Z0.T, sigma_tf(t0, X0, Y0)),dW)
         t1 = t0 + dt
         Y1 = jnp.asarray([forward(params, t1, X1)])
-        carry_new = t1,X1,Y1,Y1_tilde
+        Z1 = grad_forward(params, t1, X1)
+        carry_new = t1,X1,Y1,Y1_tilde,Z1
         return (carry_new, carry)
 
     final_state, trace = lax.scan(body, initial, (t, W))   ###the sauce
-    t_trace, X_trace, Y_trace, Y_tilde_trace = trace
-    t_end, X_end, Y_end, Y_tilde_end = final_state
+    t_trace, X_trace, Y_trace, Y_tilde_trace, Z_trace = trace
+    t_end, X_end, Y_end, Y_tilde_end, Z_end = final_state
     X = jnp.concatenate((X_trace, jnp.reshape(X_end,(1,D))), 0)
     Y = jnp.concatenate((Y_trace, jnp.reshape(Y_end,(1,1))), 0)
     Y_tilde = jnp.concatenate((Y_tilde_trace, jnp.reshape(Y_tilde_end,(1,1))), 0)
-    return X, Y, Y_tilde
+    Z = jnp.concatenate((Z_trace, jnp.reshape(Z_end,(1,D))), 0)
 
-vXYpaths = vmap(XYpaths, in_axes=(None, 0,0,None))
+    return X, Y, Y_tilde, Z
+
+vXYZpaths = vmap(XYZpaths, in_axes=(None, 0,0,None))
 
 # jit static arg nums (0,1,2,3,)
 def loss_function(params, t, W, Xzero):   #idea take M,D out by making X0
-    X,Y,Y_tilde = vXYpaths(params, t, W, Xzero)
+    X,Y,Y_tilde,Z = vXYZpaths(params, t, W, Xzero)
     # loss += jnp.sum(jnp.power(Y[:, :, 1:] - Y_tilde, 2)) # Y is 51, Y_tilde is 50 but only sum up to penultimate
-    loss = jnp.sum(jnp.power(Y[:, 1:-1, :] - Y_tilde[:,  1:-1, :], 2)) + jnp.sum(jnp.power(Y[:,-1,:] - g_tf(X[:,-1,:]), 2))
+    loss = jnp.sum(jnp.power(Y[:, 1:-1, :] - Y_tilde[:,  1:-1, :], 2)) + jnp.sum(jnp.power(Y[:,-1,:] - vg_tf(X[:,-1,:]), 2))
+    loss += jnp.sum(jnp.power(Z[:,-1,:] - vDg_tf(X[:,-1,:]), 2)) #terminal 1st order condition remove for now
+    # loss += jnp.sum(jnp.power(jnp.dot(Z[:,-1,:].T, sigma_tf(T, X[:,-1,:], Y[:,-1,:])) - vDg_tf(X[:,-1,:]), 2)) #terminal 1st order condition remove for now
 
-    # loss += jnp.sum(torch.pow(Z1 - Dg_tf(X1), 2)) #terminal 1st order condition remove for now
     return loss
 
 # @jit
@@ -104,7 +102,16 @@ def phi_tf(t, X, Y, Z):  # M x 1, M x D, M x 1, M x D
     return 0.05 * (Y - jnp.dot(X, Z))  # M x 1
 
 def g_tf(X):  # M x D
-    return jnp.sum(X ** 2, 1, keepdims=True)  # M x 1
+    return jnp.sum(X ** 2, keepdims=True)
+vg_tf = vmap(g_tf)
+
+def Dg_tf(X):
+    def g(X):
+        return jnp.sum(X ** 2)
+    gradg = grad(g)
+    Dg = gradg(X)
+    return Dg
+vDg_tf = vmap(Dg_tf)
 
 def mu_tf(t, X, Y, Z):  # M x 1, M x D, M x 1, M x D
     return jnp.zeros(D)  # M x D
@@ -119,14 +126,21 @@ def u_exact(t, X):  # (N+1) x 1, (N+1) x D
     return jnp.exp((r + sigma_max ** 2) * (T - t)) * jnp.sum(X ** 2, 1, keepdims=True)  # (N+1) x 1
 
 if __name__ == "__main__":
+    print("here")
+    from jax.lib import xla_bridge
+    print(xla_bridge.get_backend().platform)
+    print("here2")
+
     tot = time.time()
     M = 98  # number of trajectories (batch size)
     N = 50  # number of time snapshots
     D = 100#50#100  # number of dimensions
     T = 1.0
-    N_Iter = 200#0#10 #10
+    N_Iter = 2000#10 #10
     step_size = 0.001
     layers = [D + 1] + 4 * [256] + [1]  #[101, 256, 256, 256, 256, 1]
+    # layers = [D + 1] + 5 * [512] + [1]  #extra depth
+
     param_scale = 0.1
 
     if D ==1:
@@ -178,7 +192,7 @@ if __name__ == "__main__":
 
     # np.random.seed(42)
     t_test, W_test = fetch_minibatch(T, M, N, D)
-    X_pred, Y_pred, Y_tilde_pred = vXYpaths(params, t_test, W_test, Xzero)
+    X_pred, Y_pred, Y_tilde_pred, Z = vXYZpaths(params, t_test, W_test, Xzero)
 
     Dt = jnp.zeros((M, N+1, 1))  # M x (N+1) x 1
     dt = T / N
