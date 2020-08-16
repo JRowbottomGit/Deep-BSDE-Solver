@@ -122,7 +122,7 @@ class FBSNN(ABC):
             Y_list.append(Y0)
 
         loss += torch.sum(torch.pow(Y1 - self.g_tf(X1), 2))
-#        loss += torch.sum(torch.pow(Z1 - self.Dg_tf(X1), 2))
+        loss += torch.sum(torch.pow(Z1 - self.Dg_tf(X1), 2))
 
         X = torch.stack(X_list, dim=1)
         Y = torch.stack(Y_list, dim=1)

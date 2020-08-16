@@ -7,5 +7,6 @@
     <orderEntry type="module" module-name="FBSNNs" />
     <orderEntry type="module" module-name="jax" />
     <orderEntry type="module" module-name="torchdiffeq" />
+    <orderEntry type="module" module-name="deep-PDE" />
   </component>
 </module>

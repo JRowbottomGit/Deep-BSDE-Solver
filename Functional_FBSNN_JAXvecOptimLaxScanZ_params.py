@@ -10,9 +10,10 @@ from jax.ops import index, index_add, index_update
 from jax.experimental import optimizers
 from jax import lax
 
-def init_random_params(scale, layer_sizes, rng=npr.RandomState(0)): #random state?
+def init_random_params(scale, layer_sizes, rng=npr.RandomState(0)):
   return [(scale * rng.randn(m, n), scale * rng.randn(n))
           for m, n, in zip(layer_sizes[:-1], layer_sizes[1:])]
+
 def relu(x):
     return jnp.maximum(0, x)
 
@@ -27,7 +28,7 @@ def forward(params, t, X):
 
     final_w, final_b = params[-1]
     u = jnp.dot(activations, final_w) + final_b
-    return jnp.reshape(u,())  #need scalar for grad
+    return jnp.reshape(u, ())  # need scalar for grad
 vforward = vmap(forward, in_axes=(None, 0, 0))
 
 def grad_forward(params, t, X):
@@ -78,17 +79,14 @@ def XYZpaths(params, t, W, X0):
     Z = jnp.concatenate((Z_trace, jnp.reshape(Z_end,(1,D))), 0)
 
     return X, Y, Y_tilde, Z
-
 vXYZpaths = vmap(XYZpaths, in_axes=(None, 0,0,None))
 
 # jit static arg nums (0,1,2,3,)
 def loss_function(params, t, W, Xzero):   #idea take M,D out by making X0
     X,Y,Y_tilde,Z = vXYZpaths(params, t, W, Xzero)
-    # loss += jnp.sum(jnp.power(Y[:, :, 1:] - Y_tilde, 2)) # Y is 51, Y_tilde is 50 but only sum up to penultimate
-    loss = jnp.sum(jnp.power(Y[:, 1:-1, :] - Y_tilde[:,  1:-1, :], 2)) + jnp.sum(jnp.power(Y[:,-1,:] - vg_tf(X[:,-1,:]), 2))
+    loss = jnp.sum(jnp.power(Y[:, 1:-1, :] - Y_tilde[:,  1:-1, :], 2))
+    loss += jnp.sum(jnp.power(Y[:,-1,:] - vg_tf(X[:,-1,:]), 2))
     loss += jnp.sum(jnp.power(Z[:,-1,:] - vDg_tf(X[:,-1,:]), 2)) #terminal 1st order condition remove for now
-    # loss += jnp.sum(jnp.power(jnp.dot(Z[:,-1,:].T, sigma_tf(T, X[:,-1,:], Y[:,-1,:])) - vDg_tf(X[:,-1,:]), 2)) #terminal 1st order condition remove for now
-
     return loss
 
 # @jit
@@ -133,11 +131,10 @@ if __name__ == "__main__":
     D = 100#50#100  # number of dimensions
     T = 1.0
     N_Iter = 2000#10 #10
-    step_size_list = [0.001, 0.0001, 0.00001, 0.000001]
+    step_size_list = [0.001] #[0.001, 0.0001, 0.00001, 0.000001]
     # step_size = 0.001#01
     layers = [D + 1] + 4 * [256] + [1]  #[101, 256, 256, 256, 256, 1]
     # layers = [D + 1] + 5 * [512] + [1]  #extra depth
-
     param_scale = 0.01
 
     if D ==1:
@@ -152,24 +149,21 @@ if __name__ == "__main__":
     loss_temp = jnp.array([])
 
     previous_it = 0
-    if iteration != []:
-        previous_it = iteration[-1]
-
     # Optimizer
     params = init_random_params(param_scale, layers)
 
-    for step_size in step_size_list: ##
+    for step_size in step_size_list:
         opt_init, opt_update, get_params = optimizers.adam(step_size)
         opt_state = opt_init(params)
 
         start_time = time.time()
         itercount = itertools.count() ###shouldn't have iterators in functional code?? but its in the example https://github.com/google/jax/blob/2b7a39f92bd3380eb74c320980675b01eb0881f7/examples/mnist_classifier.py#L74
+        if iteration != []:
+            previous_it = iteration[-1]+10
         for it in range(previous_it, previous_it + N_Iter):
-            # print(f"Iteration {it}")
             t_batch, W_batch = fetch_minibatch(T, M, N, D)  # M x (N+1) x 1, M x (N+1) x D
             # idea take M,D out by making X0 - probs can just remove from arguments
             opt_state = update(next(itercount), opt_state, t_batch, W_batch, Xzero)
-
             params = get_params(opt_state)
 
             loss = loss_function(params, t_batch, W_batch, Xzero)  # annoying as it gets calc'd twice
@@ -180,14 +174,12 @@ if __name__ == "__main__":
                 print('It: %d, Loss: %.3e, Time: %.2f, Learning Rate: %.3e' %
                       (it, loss, elapsed, step_size))
                 start_time = time.time()
-            # Loss
+                # Loss
                 training_loss.append(loss_temp.mean())
                 loss_temp = jnp.array([])
                 iteration.append(it)
 
-            graph = np.stack((iteration, training_loss))
-
-
+    graph = np.stack((iteration, training_loss))
 
     print("total time:", time.time() - tot, "s")
 

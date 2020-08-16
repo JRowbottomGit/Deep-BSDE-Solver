@@ -1,14 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-t_test = np.load('t_test.npy')
-W_test = np.load('W_test.npy')
-t_plot = np.load('t_plot.npy')
-X_pred = np.load('X_pred.npy')
-Y_pred = np.load('Y_pred.npy')
-Y_tilde_pred = np.load('Y_tilde_pred.npy')
-Y_test = np.load('Y_test.npy')
-graph = np.load('graph.npy')
+# path = "./output_colab_ODE_ITO_decstep/"
+path = ""
+
+t_test = np.load(path + 't_test.npy')
+W_test = np.load(path + 'W_test.npy')
+t_plot = np.load(path + 't_plot.npy')
+X_pred = np.load(path + 'X_pred.npy')
+Y_pred = np.load(path + 'Y_pred.npy')
+Y_tilde_pred = np.load(path + 'Y_tilde_pred.npy')
+Y_test = np.load(path + 'Y_test.npy')
+graph = np.load(path + 'graph.npy')
+# DYDT = np.load(path + 'DYDT_test.npy')
 
 #Training Loss
 plt.figure()
@@ -43,6 +47,20 @@ plt.title('Y values')
 plt.legend()
 plt.savefig("Jax_Y_pred_and_test")
 plt.show()
+
+# plot DYDT path
+# samples = 10
+# plt.figure()
+# # plt.plot(t_plot[0,:,0], DYDT[0,:,0])
+# for i in range(samples):
+#     plt.plot(t_plot[i, :, 0], DYDT[i,:,0])#, 'b', label='Learned $u(t,X_t)$')
+# plt.xlabel('Time')
+# plt.ylabel('Value')
+# plt.title('DYDT path sample')
+# plt.legend()
+# plt.savefig("DYDT")
+# plt.show()
+
 
 #Average over test batch
 plt.figure()
